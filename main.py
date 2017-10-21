@@ -5,13 +5,38 @@ from Tkinter import *
 import random
 import math
 
-#Valores de Influencia
-c1 = 0.4
-c2 = 0.8
+#Numero de Iteraciones General
+NI = 300
 
-#Inicializar mejores globales
-gbest = 0
-ngbest = gbest
+#Contador de Iteraciones dados (Esto es para pythonTK pero se puede solo poner el for y ya)
+NI_CONT = 1
+
+#Numero de pasos por particula por Iteracion
+NS = 50
+
+#Contador de PASOS dados (Esto es para pythonTK pero se puede solo poner el for y ya)
+NS_CONT = 0 
+
+#Tiempo en milisegundos para cada iteracion
+ITERATION_MS = 5
+
+#Longitud de cada Paso
+ST_LEN = 20.0
+
+#Radio de particula
+PA_R = 10
+
+#Radio de Zona Segura (Solo para propositos de graficacion en Python)
+SZ_R = 50
+
+#Mejor Fitness 
+BF = -1
+
+#Probabilidad de Mutacion D:! VALOR DE 0 a 100
+MUTATIONRATE = 20
+
+#Cantidad de particulas
+MANYP = 10
 
 #Zona segura 
 safe_zone = Point(400, 100)
@@ -104,75 +129,121 @@ def printWalls(): #Dibujar las paredes definidas en el arreglo de paredes
 
 def printSafeZone(coords): #Dibujar la zona segura, recibe un punto
 	global draw
-	draw.ellipse((coords.coord_x - 50, coords.coord_y - 50, coords.coord_x + 50, coords.coord_y + 50), (0, 255, 0)) #circulo SEGURO centro en coords
+	draw.ellipse((coords.coord_x - SZ_R, coords.coord_y - SZ_R, coords.coord_x + SZ_R, coords.coord_y + SZ_R), (0, 255, 0)) #circulo SEGURO centro en coords
 
-def printSingleParticle(coords): #Dibujar la particula, recibe un punto
+def printSingleParticle(part): #Dibujar la particula, recibe una particula
 	global draw
-	draw.ellipse((coords.coord_x - 10, coords.coord_y - 10, coords.coord_x + 10, coords.coord_y + 10), (0, 0, 255)) #circulo centro en coords
+	coords = part.curr_coord
+	color = (0, 0, 255)
+	if (part.hitWall):
+		color = (255, 0, 0)
+	draw.ellipse((coords.coord_x - PA_R, coords.coord_y - PA_R, coords.coord_x + PA_R, coords.coord_y + PA_R), color) #circulo centro en coords
 
 def printParticles(parts): #Dibuja el arreglo de particulas
 	for particle in particles:
-		printSingleParticle(particle.curr_coord) 
+		printSingleParticle(particle) 
 
 def newPoint(point, direction): #Determina la siguiente posicion de la particula segun su angulo de direccion
-	return Point(point.coord_x + math.cos(direction) * 10.0, point.coord_y + math.sin(direction) * 10.0)
+	return Point(point.coord_x + math.cos(direction) * ST_LEN, point.coord_y + math.sin(direction) * ST_LEN) 
 
 def getDistance(p1, p2): #determina la distancia entre dos puntos
 	return math.sqrt(((p1.coord_x - p2.coord_x) * (p1.coord_x - p2.coord_x)) + ((p1.coord_y - p2.coord_y) * (p1.coord_y - p2.coord_y)))
 
 def getFitness(particle):
-	particle.prev_coord = particle.curr_coord #determinar que la posicion actual ahora es la previa
-	particle.curr_coord = newPoint(particle.curr_coord, particle.direction) #determinar nueva posicion
-	fitness_value = getDistance(safe_zone, particle.curr_coord) #determinar la distancia a la zona segura
-	if (intersectWithWalls(particle.curr_coord, particle.prev_coord)): #si intersecta con las paredes su valor fitness sera mucho menor
-		fitness_value *= 1000000;
-	return fitness_value 
+	temp = particle.prev_coord												#guardar la posicion anterior
+	particle.prev_coord = particle.curr_coord								#determinar que la posicion actual ahora es la previa
+	particle.curr_coord = newPoint(particle.curr_coord, particle.directions[particle.curr_step]) #determinar nueva posicion
+	fitness_value = 1.0 / getDistance(safe_zone, particle.curr_coord)		#determinar la distancia a la zona segura
+	particle.curr_step += 1
+	fitness_value *= fitness_value
+	fitness_value *= 3.0											#Hacer un buen valor mucho mejor
+	if (intersectWithWalls(particle.curr_coord, particle.prev_coord) or (particle.hitWall)):		#si intersecta con las paredes su valor fitness sera mucho menor
+		fitness_value *= 1.0
+		particle.hitWall = 1
+		particle.curr_coord = temp
+	return fitness_value
 
-def getNewParticles():
-	global gbest, ngbest
+def moveParticlesOneStep():
+	global BF
 	for p in particles:
-		fitness = getFitness(p) #determinar fitness
-		if fitness < p.fitness: #determinar si es la mejor vista por la particula en su camino
-			p.fitness = fitness
-			p.bi_solution = p.direction
-		
-		if fitness < ngbest.fitness: #determinar si es la mejor vista en todo el swarm
-			ngbest = p
-		
-		direction = p.direction + c1 * random.random() * (p.bi_solution - p.direction) + c2 * random.random() * (gbest.direction - p.direction) #Determinar nueva direccion considerando la influencia del grupo
-		p.direction = direction #cambiar la direccion
-	 
-	gbest = ngbest #Cambiar el mejor global
+		p.fitness = getFitness(p) #determinar fitness	
+		if p.fitness > BF: #determinar si es la mejor vista en todo el swarm
+			BF = p.fitness
 
 def printThings():
 	printSafeZone(safe_zone) #Draw Circle for Safezone 
 	printWalls() #Draw Walls
-	particles = getNewParticles() #sacar el nuevo arreglo de particulas
+	particles = moveParticlesOneStep() #mover el arreglo de particulas
 	printParticles(particles) #Draw Particles
 
+#Punto de inicio
+def getRandomStartZone():
+	while (True):
+		pos_particle = Particle(random.randint(200, 600), random.randint(150, 550), NS)
+		if (not intersectWithWalls(pos_particle.curr_coord, pos_particle.curr_coord)):
+			return Point(pos_particle.curr_coord.coord_x, pos_particle.curr_coord.coord_y)
 
-particles = []
+start_zone = getRandomStartZone() 
+
 #Inicializar Particulas
-SINGLE_SOURCE = 0 # Si solo se quiere un source
-while (True):
-	pos_particle = Particle(random.randint(200, 600), random.randint(150, 550))
-	if (not intersectWithWalls(pos_particle.curr_coord, pos_particle.curr_coord)):
-		if (SINGLE_SOURCE):
-			for i in xrange(10):
-				particles.append(Particle(pos_particle.curr_coord.coord_x, pos_particle.curr_coord.coord_y))
-		else:
-			particles.append(pos_particle)
-	if (len(particles) == 10):
-		break
-
-gbest = particles[0]
-ngbest = gbest
+particles = []
+for i in xrange(MANYP):
+	particles.append(Particle(start_zone.coord_x, start_zone.coord_y, NS))
 
 im = PIL.Image.new("RGB", (800,600), (255, 255, 255)) #Define Image
 draw = PIL.ImageDraw.Draw(im) #Draw image
 
+
+
+def crossover(mom, dad): 
+	childDirections = [];
+	crossover = int(random.randint(0, NS));
+	#Take "half" from one and "half" from the other
+	for i in xrange(NS):
+		if (i > crossover):
+			childDirections.append(mom.directions[i]);
+		else:
+			childDirections.append(dad.directions[i]);
+	child = Particle(start_zone.coord_x, start_zone.coord_y, NS)
+	child.directions = childDirections
+	return child
+
+def mutate(child):
+	for i in xrange(NS):
+		if (random.randint(1, 100) < MUTATIONRATE):
+			child.directions[i] = random.randint(0, 360)
+	return child;
+
+#Nueva Generacion de particulas
+def getNewGeneration():
+	global NS, particles, BF
+	nparticles = []		#Nuevo set de particulas
+	matingPool = []		#La ruleta para las probabilidades
+	print "******************************"
+	for i in xrange(MANYP):
+		nparticles.append(Particle(start_zone.coord_x, start_zone.coord_y, NS))
+		fitnessNormal = particles[i].fitness / BF
+		tickets_number = max(int(fitnessNormal * 100), 1) #SE multiplica de manera arbitraria
+		print "Fit: {0} FitN: {1} TN: {2}".format(particles[i].fitness, fitnessNormal, tickets_number)
+		for j in xrange(tickets_number):
+			matingPool.append(particles[i])
+
+	matingPoolLen = len(matingPool)
+	for i in xrange(MANYP):
+		# Sping the wheel of fortune to pick two parents
+		m = int(random.randint(0, matingPoolLen - 1))
+		d = int(random.randint(0, matingPoolLen - 1))
+		mom = matingPool[m];
+		dad = matingPool[d];
+		child = crossover(mom, dad);
+		#Mutate their genes
+		child = mutate(child)
+		nparticles[i] = child
+	BF = -1.0
+	particles = nparticles
+
 def process():
-	global im, imm, contador, draw
+	global im, imm, contador, draw, NS_CONT, NS, NI, NI_CONT
 	im = PIL.Image.new("RGB", (800,600), (255, 255, 255)) #Define Image
 	draw = PIL.ImageDraw.Draw(im) #Draw image
 	
@@ -181,12 +252,27 @@ def process():
 	imagename = "Photo.png".format()
 	im.save(imagename)
 	imm = PIL.ImageTk.PhotoImage(file = './'+imagename)
-	
+
+	##
+	##caGrid.destroy()
+	##caGrid = Canvas(root, width = 800, height = 600, background = "gray") #Inicializar Canvas
+	##caGrid.grid() #Posicionar el canvas
+	##
+
 	caGrid.delete("all")	
 	caGrid.create_image(400, 300, image=imm)
 	caGrid.update_idletasks()
 	
-	root.after(100, process)
+	NS_CONT += 1
+	if (NS_CONT < NS):
+		root.after(ITERATION_MS, process)
+	else:
+		if (NI_CONT < NI):
+			NI_CONT += 1
+			particles = getNewGeneration()
+			NS_CONT = 0
+			root.after(ITERATION_MS, process)	
 
 process()
+
 root.mainloop()
