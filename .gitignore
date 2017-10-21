@@ -1,0 +1,2 @@
+#Ignorar Archivos Compilados de Python
+./**/*.pyc
