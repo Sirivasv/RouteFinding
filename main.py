@@ -153,18 +153,19 @@ def getFitness(particle):
 	temp = particle.prev_coord												#guardar la posicion anterior
 	particle.prev_coord = particle.curr_coord								#determinar que la posicion actual ahora es la previa
 	particle.curr_coord = newPoint(particle.curr_coord, particle.directions[particle.curr_step]) #determinar nueva posicion
-	fitness_value = 1.0 / getDistance(safe_zone, particle.curr_coord)		#determinar la distancia a la zona segura
+	fitness_value = 100000.0 / getDistance(safe_zone, particle.curr_coord)		#determinar la distancia a la zona segura
 	particle.curr_step += 1
 	fitness_value *= fitness_value
 	fitness_value *= 3.0											#Hacer un buen valor mucho mejor
 	if (intersectWithWalls(particle.curr_coord, particle.prev_coord) or (particle.hitWall)):		#si intersecta con las paredes su valor fitness sera mucho menor
-		fitness_value *= 1.0
+		fitness_value /= 2.0
 		particle.hitWall = 1
 		particle.curr_coord = temp
 	return fitness_value
 
 def moveParticlesOneStep():
 	global BF
+	BF = -1
 	for p in particles:
 		p.fitness = getFitness(p) #determinar fitness	
 		if p.fitness > BF: #determinar si es la mejor vista en todo el swarm
@@ -224,7 +225,7 @@ def getNewGeneration():
 		nparticles.append(Particle(start_zone.coord_x, start_zone.coord_y, NS))
 		fitnessNormal = particles[i].fitness / BF
 		tickets_number = max(int(fitnessNormal * 100), 1) #SE multiplica de manera arbitraria
-		print "Fit: {0} FitN: {1} TN: {2}".format(particles[i].fitness, fitnessNormal, tickets_number)
+		print "BF: {3} Fit: {0} FitN: {1} TN: {2}".format(particles[i].fitness, fitnessNormal, tickets_number, BF)
 		for j in xrange(tickets_number):
 			matingPool.append(particles[i])
 
