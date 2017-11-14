@@ -225,7 +225,7 @@ def getNewGeneration():
 		nparticles.append(Particle(start_zone.coord_x, start_zone.coord_y, NS))
 		fitnessNormal = particles[i].fitness / BF
 		tickets_number = max(int(fitnessNormal * 100), 1) #SE multiplica de manera arbitraria
-		print "BF: {3} Fit: {0} FitN: {1} TN: {2}".format(particles[i].fitness, fitnessNormal, tickets_number, BF)
+		print "Iteration: {4} BF: {3} Fit: {0} FitN: {1} TN: {2}".format(particles[i].fitness, fitnessNormal, tickets_number, BF, NI_CONT)
 		for j in xrange(tickets_number):
 			matingPool.append(particles[i])
 
